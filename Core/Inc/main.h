@@ -66,9 +66,6 @@ void Error_Handler(void);
 #define RFM95_DIO0_EXTI_IRQn EXTI9_5_IRQn
 #define RFM95_NSS_Pin GPIO_PIN_0
 #define RFM95_NSS_GPIO_Port GPIOB
-#define RFM95_DIO5_Pin GPIO_PIN_8
-#define RFM95_DIO5_GPIO_Port GPIOA
-#define RFM95_DIO5_EXTI_IRQn EXTI9_5_IRQn
 #define SWDIO_Pin GPIO_PIN_13
 #define SWDIO_GPIO_Port GPIOA
 #define SWCLK_Pin GPIO_PIN_14
