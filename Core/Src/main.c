@@ -90,12 +90,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   if (GPIO_Pin == RFM95_DIO0_Pin) {
     rfm95_on_interrupt(&rfm95_handle, RFM95_INTERRUPT_DIO0);
   }
-  // else if (GPIO_Pin == RFM95_DIO1_Pin) {
-  //   rfm95_on_interrupt(&rfm95_handle, RFM95_INTERRUPT_DIO1);
-  // }
-  else if (GPIO_Pin == RFM95_DIO5_Pin) {
-    rfm95_on_interrupt(&rfm95_handle, RFM95_INTERRUPT_DIO5);
-  }
 }
 /* USER CODE END PV */
 
@@ -174,6 +168,11 @@ int main(void)
     if(rfm95_receive_package(&rfm95_handle, rx_buffer, &rx_len, &received_snr)){
       printf("Received %d bytes: %.*s (SNR: %d dB)\r\n", (int)rx_len, (int)rx_len, rx_buffer, received_snr);
     }
+    // if (!rfm95_send_package(&rfm95_handle, data_packet, sizeof(data_packet) - 1)) {
+    //   printf("RFM95 send failed\r\n");
+    // } else {
+    //   printf("RFM95 send success\r\n");
+    // }
 
     // HAL_Delay(500);
   }
@@ -338,11 +337,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : RFM95_DIO0_Pin RFM95_DIO5_Pin */
-  GPIO_InitStruct.Pin = RFM95_DIO0_Pin|RFM95_DIO5_Pin;
+  /*Configure GPIO pin : RFM95_DIO0_Pin */
+  GPIO_InitStruct.Pin = RFM95_DIO0_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(RFM95_DIO0_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : RFM95_NSS_Pin LD3_Pin RFM95_NRST_Pin */
   GPIO_InitStruct.Pin = RFM95_NSS_Pin|LD3_Pin|RFM95_NRST_Pin;

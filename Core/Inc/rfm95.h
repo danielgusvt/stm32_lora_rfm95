@@ -26,9 +26,7 @@ typedef void (*rfm95_precision_sleep_until)(uint32_t ticks_target);
 
 typedef enum
 {
-	RFM95_INTERRUPT_DIO0,
-	RFM95_INTERRUPT_DIO1,
-	RFM95_INTERRUPT_DIO5
+	RFM95_INTERRUPT_DIO0
 } rfm95_interrupt_t;
 
 #define RFM95_INTERRUPT_COUNT 3
