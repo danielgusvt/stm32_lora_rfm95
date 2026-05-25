@@ -20,6 +20,53 @@
 #define RFM95_RECEIVE_TIMEOUT 1000
 #endif
 
+/*
+ * RegModemConfig 1 (0x1D)
+ */
+// Signal bandwidth, must be shifted to the left by 4 bits
+#define RFM95_BW_78  0
+#define RFM95_BW_104  1
+#define RFM95_BW_156  2
+#define RFM95_BW_208 3
+#define RFM95_BW_3125  4
+#define RFM95_BW_417  5
+#define RFM95_BW_625  6
+#define RFM95_BW_125  7
+#define RFM95_BW_250  8
+#define RFM95_BW_500  9
+// Coding rate, must be shifted to the left by 1 bit
+#define RFM95_CR_45 1
+#define RFM95_CR_46 2
+#define RFM95_CR_47 3
+#define RFM95_CR_48 4
+// Implicit Header Mode On
+#define RFM95_IMP_HEA 1
+
+/*
+ * RegModemConfig 2 (0x1E)
+ */
+// Spreading factor, must be shifted to the left by 4 bits
+#define RFM95_SF_6  6
+#define RFM95_SF_7  7
+#define RFM95_SF_8  8
+#define RFM95_SF_9  9
+#define RFM95_SF_10 10
+#define RFM95_SF_11  11
+#define RFM95_SF_12  12
+// TxContinuousMode, must be shifted to the left by 3 bits
+#define RFM95_TX_CONT 1
+// RxPayloadCrcOn, must be shifted to the left by 2 bits
+#define RFM95_CRC_ON 1
+
+/*
+ * RegModemConfig 3 (0x26)
+ */
+// MobileNode, must be shifted to the left by 3 bits
+#define RFM95_STATIC_ND 0
+#define RFM95_MOBILE_ND 1
+// AgcAutoOn, must be shifted to the left by 2 bits
+#define RFM95_AGC_AUTO 1
+
 typedef void (*rfm95_on_after_interrupts_configured)();
 typedef uint32_t (*rfm95_get_precision_tick)();
 typedef void (*rfm95_precision_sleep_until)(uint32_t ticks_target);
