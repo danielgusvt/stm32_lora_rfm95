@@ -210,13 +210,13 @@ bool rfm95_init(rfm95_handle_t *handle)
 	if (!write_register(handle, RFM95_REGISTER_FIFO_TX_BASE_ADDR, 0x80)) return false;
 	if (!write_register(handle, RFM95_REGISTER_FIFO_RX_BASE_ADDR, 0x00)) return false;
 
-	// Maximum payload length of the RFM95 is 252 (with radiohead headers max is usually 255 but keep 252 for saftey)
+	// Maximum payload length of the RFM95 is 252 (with radiohead headers max is usually 255 but keep 252 for safety)
 	if (!write_register(handle, RFM95_REGISTER_MAX_PAYLOAD_LENGTH, 252)) return false;
 
-	// Configure modem (125kHz, 4/5 error coding rate, SF7, single packet, CRC enable, AGC auto on)
-	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_1, 0x72)) return false;
-	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_2, 0x74)) return false;
-	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_3, 0x04)) return false;
+	// Configure modem (125kHz, 4/5 error coding rate, SF12, single packet (continuous off), CRC enable, AGC auto on)
+	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_1, (RFM95_BW_125 << 4) | (RFM95_CR_45 << 1))) return false;
+	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_2, (RFM95_SF_12 << 4) | (RFM95_CRC_ON << 2))) return false;
+	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_3, (RFM95_AGC_AUTO << 2))) return false;
 
 	// Let module sleep after initialisation.
 	if (!write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_SLEEP)) return false;
