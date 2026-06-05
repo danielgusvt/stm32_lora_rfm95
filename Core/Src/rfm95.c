@@ -213,10 +213,10 @@ bool rfm95_init(rfm95_handle_t *handle)
 	// Maximum payload length of the RFM95 is 252 (with radiohead headers max is usually 255 but keep 252 for safety)
 	if (!write_register(handle, RFM95_REGISTER_MAX_PAYLOAD_LENGTH, 252)) return false;
 
-	// Configure modem (125kHz, 4/5 error coding rate, SF12, single packet (continuous off), CRC enable, AGC auto on)
-	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_1, (RFM95_BW_125 << 4) | (RFM95_CR_45 << 1))) return false;
+	// Configure modem (125kHz, 4/8 error coding rate, SF12, single packet (continuous off), CRC enable, AGC auto on)
+	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_1, (RFM95_BW_125 << 4) | (RFM95_CR_48 << 1))) return false;
 	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_2, (RFM95_SF_12 << 4) | (RFM95_CRC_ON << 2))) return false;
-	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_3, (RFM95_AGC_AUTO << 2))) return false;
+	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_3, (RFM95_MOBILE_ND << 3) | (RFM95_AGC_AUTO << 2))) return false;
 
 	// Let module sleep after initialisation.
 	if (!write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_SLEEP)) return false;
