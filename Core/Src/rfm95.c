@@ -3,71 +3,6 @@
 #include <assert.h>
 #include <string.h>
 
-#define RFM9x_VER 0x12
-
-typedef enum
-{
-	RFM95_REGISTER_FIFO_ACCESS = 0x00,
-	RFM95_REGISTER_OP_MODE = 0x01,
-	RFM95_REGISTER_FR_MSB = 0x06,
-	RFM95_REGISTER_FR_MID = 0x07,
-	RFM95_REGISTER_FR_LSB = 0x08,
-	RFM95_REGISTER_PA_CONFIG = 0x09,
-	RFM95_REGISTER_LNA = 0x0C,
-	RFM95_REGISTER_FIFO_ADDR_PTR = 0x0D,
-	RFM95_REGISTER_FIFO_TX_BASE_ADDR = 0x0E,
-	RFM95_REGISTER_FIFO_RX_BASE_ADDR = 0x0F,
-	RFM95_REGISTER_IRQ_FLAGS = 0x12,
-	RFM95_REGISTER_FIFO_RX_BYTES_NB = 0x13,
-    RFM95_REGISTER_FIFO_RX_CURRENT_ADDR = 0x10,
-	RFM95_REGISTER_PACKET_SNR = 0x19,
-	RFM95_REGISTER_MODEM_CONFIG_1 = 0x1D,
-	RFM95_REGISTER_MODEM_CONFIG_2 = 0x1E,
-	RFM95_REGISTER_SYMB_TIMEOUT_LSB = 0x1F,
-	RFM95_REGISTER_PREAMBLE_MSB = 0x20,
-	RFM95_REGISTER_PREAMBLE_LSB = 0x21,
-	RFM95_REGISTER_PAYLOAD_LENGTH = 0x22,
-	RFM95_REGISTER_MAX_PAYLOAD_LENGTH = 0x23,
-	RFM95_REGISTER_MODEM_CONFIG_3 = 0x26,
-	RFM95_REGISTER_INVERT_IQ_1 = 0x33,
-	RFM95_REGISTER_SYNC_WORD = 0x39,
-	RFM95_REGISTER_INVERT_IQ_2 = 0x3B,
-	RFM95_REGISTER_DIO_MAPPING_1 = 0x40,
-	RFM95_REGISTER_VERSION = 0x42,
-	RFM95_REGISTER_PA_DAC = 0x4D
-} rfm95_register_t;
-
-typedef struct
-{
-	union {
-		struct {
-			uint8_t output_power : 4;
-			uint8_t max_power : 3;
-			uint8_t pa_select : 1;
-		};
-		uint8_t buffer;
-	};
-} rfm95_register_pa_config_t;
-
-#define RFM95_REGISTER_OP_MODE_SLEEP                            0x00
-#define RFM95_REGISTER_OP_MODE_LORA_SLEEP                       0x80
-#define RFM95_REGISTER_OP_MODE_LORA_STANDBY                     0x81
-#define RFM95_REGISTER_OP_MODE_LORA_TX                          0x83
-#define RFM95_REGISTER_OP_MODE_LORA_RX_CONT                     0x85
-#define RFM95_REGISTER_OP_MODE_LORA_RX_SINGLE                   0x86
-
-#define RFM95_REGISTER_PA_DAC_LOW_POWER                         0x84
-#define RFM95_REGISTER_PA_DAC_HIGH_POWER                        0x87
-
-#define RFM95_REGISTER_DIO_MAPPING_1_IRQ_FOR_TXDONE             0x40
-#define RFM95_REGISTER_DIO_MAPPING_1_IRQ_FOR_RXDONE             0x00
-
-#define RFM95_REGISTER_INVERT_IQ_1_TX                    		0x27
-#define RFM95_REGISTER_INVERT_IQ_2_TX							0x1d
-
-#define RFM95_REGISTER_INVERT_IQ_1_RX                    		0x67
-#define RFM95_REGISTER_INVERT_IQ_2_RX							0x19
-
 static bool read_register(rfm95_handle_t *handle, rfm95_register_t reg, uint8_t *buffer, size_t length)
 {
 	HAL_GPIO_WritePin(handle->nss_port, handle->nss_pin, GPIO_PIN_RESET);
@@ -85,6 +20,11 @@ static bool read_register(rfm95_handle_t *handle, rfm95_register_t reg, uint8_t 
 	HAL_GPIO_WritePin(handle->nss_port, handle->nss_pin, GPIO_PIN_SET);
 
 	return true;
+}
+
+bool rfm95_read_register(rfm95_handle_t *handle, rfm95_register_t reg, uint8_t *value)
+{
+	return read_register(handle, reg, value, 1);
 }
 
 static bool write_register(rfm95_handle_t *handle, rfm95_register_t reg, uint8_t value)
@@ -193,13 +133,13 @@ bool rfm95_init(rfm95_handle_t *handle)
 		handle->on_after_interrupts_configured();
 	}
 
-	// Set module power to 17dbm.
-	if (!rfm95_set_power(handle, 17)) return false;
+	// Set module power to 20 dBm
+	if (!rfm95_set_power(handle, 20)) return false;
 
-	// Set LNA to the highest gain with 150% boost.
+	// Set LNA to the highest gain with 150% boost
 	if (!write_register(handle, RFM95_REGISTER_LNA, 0x23)) return false;
 
-	// Preamble set to 8.
+	// Preamble set to 8
 	if (!write_register(handle, RFM95_REGISTER_PREAMBLE_MSB, 0x00)) return false;
 	if (!write_register(handle, RFM95_REGISTER_PREAMBLE_LSB, 0x08)) return false;
 
@@ -213,10 +153,10 @@ bool rfm95_init(rfm95_handle_t *handle)
 	// Maximum payload length of the RFM95 is 252 (with radiohead headers max is usually 255 but keep 252 for safety)
 	if (!write_register(handle, RFM95_REGISTER_MAX_PAYLOAD_LENGTH, 252)) return false;
 
-	// Configure modem (125kHz, 4/8 error coding rate, SF12, single packet (continuous off), CRC enable, AGC auto on)
-	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_1, (RFM95_BW_125 << 4) | (RFM95_CR_48 << 1))) return false;
-	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_2, (RFM95_SF_12 << 4) | (RFM95_CRC_ON << 2))) return false;
-	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_3, (RFM95_MOBILE_ND << 3) | (RFM95_AGC_AUTO << 2))) return false;
+	// Configure modem (125kHz, 4/5 error coding rate, SF7, single packet (continuous off), CRC enable, AGC auto on)
+	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_1, (RFM95_BW_125 << 4) | (RFM95_CR_45 << 1))) return false;
+	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_2, (RFM95_SF_7 << 4) | (RFM95_CRC_ON << 2))) return false;
+	if (!write_register(handle, RFM95_REGISTER_MODEM_CONFIG_3, (RFM95_AGC_AUTO << 2))) return false; //(RFM95_MOBILE_ND << 3) |
 
 	// Let module sleep after initialisation.
 	if (!write_register(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA_SLEEP)) return false;

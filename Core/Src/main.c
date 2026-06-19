@@ -105,6 +105,36 @@ static void MX_USART2_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+/*
+ * LoRa image-transfer framing (must match the BL808 sender).
+ *   HEADER : [0xA1][len(4,BE)][chunks(2,BE)]
+ *   DATA   : [0xA2][idx(2,BE)][ up to 240 JPEG bytes ]
+ *   TAIL   : [0xA3][len(4,BE)]
+ *
+ * Each received image is dumped to the serial port as:
+ *   JPEG_BEGIN len=<N> chunks=<C> snr=<S>
+ *   <hex line per DATA chunk>
+ *   ...
+ *   JPEG_END received=<r>/<C> gaps=<g>
+ * Copy the hex lines between the markers and run:  xxd -r -p > img.jpg
+ */
+#define PKT_TYPE_HEADER 0xA1
+#define PKT_TYPE_DATA   0xA2
+#define PKT_TYPE_TAIL   0xA3
+
+static void uart_write_hex(const uint8_t *data, size_t len)
+{
+  static const char hexchars[] = "0123456789abcdef";
+  char line[2 * 240 + 2];
+  size_t pos = 0;
+  for (size_t i = 0; i < len; i++) {
+    line[pos++] = hexchars[data[i] >> 4];
+    line[pos++] = hexchars[data[i] & 0x0F];
+  }
+  line[pos++] = '\r';
+  line[pos++] = '\n';
+  HAL_UART_Transmit(&huart2, (uint8_t *)line, pos, HAL_MAX_DELAY);
+}
 /* USER CODE END 0 */
 
 /**
@@ -139,42 +169,89 @@ int main(void)
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
   // Initialise RFM95 module.
   if (!rfm95_init(&rfm95_handle)) {
-    printf("RFM95 init failed\n\r");
+    printf("RFM95 init failed\r\n");
   }
+  printf("RFM95 init successfully!\r\n");
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  uint8_t data_packet[] = "Hello from STM32!";
-  if (!rfm95_send_package(&rfm95_handle, data_packet, sizeof(data_packet) - 1)) {
-    printf("RFM95 send failed\r\n");
-  } else {
-    printf("RFM95 send success\r\n");
-  }
-
   uint8_t rx_buffer[252];
-  size_t rx_len;
-  int8_t received_snr;
+  size_t  rx_len;
+  int8_t  received_snr;
+
+  uint32_t img_len      = 0;
+  uint16_t total_chunks = 0;
+  uint16_t recv_chunks  = 0;
+  uint16_t expected_idx = 0;
+  uint16_t gaps         = 0;
+  uint8_t  in_image     = 0;
+  uint32_t t_begin      = 0;
+
+  /* Read the modem configuration registers once (they don't change at runtime). */
+  uint8_t cfg1 = 0, cfg2 = 0, cfg3 = 0;
+  rfm95_read_register(&rfm95_handle, RFM95_REGISTER_MODEM_CONFIG_1, &cfg1);
+  rfm95_read_register(&rfm95_handle, RFM95_REGISTER_MODEM_CONFIG_2, &cfg2);
+  rfm95_read_register(&rfm95_handle, RFM95_REGISTER_MODEM_CONFIG_3, &cfg3);
+
+  printf("LoRa image receiver ready — waiting for transmissions...\r\n");
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    if(rfm95_receive_package(&rfm95_handle, rx_buffer, &rx_len, &received_snr)){
-      printf("Received %d bytes: %.*s (SNR: %d dB)\r\n", (int)rx_len, (int)rx_len, rx_buffer, received_snr);
+    if (!rfm95_receive_package(&rfm95_handle, rx_buffer, &rx_len, &received_snr)) {
+      continue;  /* timeout, keep listening */
     }
-    // if (!rfm95_send_package(&rfm95_handle, data_packet, sizeof(data_packet) - 1)) {
-    //   printf("RFM95 send failed\r\n");
-    // } else {
-    //   printf("RFM95 send success\r\n");
-    // }
+    if (rx_len < 1) {
+      continue;
+    }
 
-    // HAL_Delay(500);
+    switch (rx_buffer[0]) {
+      case PKT_TYPE_HEADER:
+        if (rx_len < 7) break;
+        img_len = ((uint32_t)rx_buffer[1] << 24) | ((uint32_t)rx_buffer[2] << 16) |
+                  ((uint32_t)rx_buffer[3] << 8)  |  (uint32_t)rx_buffer[4];
+        total_chunks = ((uint16_t)rx_buffer[5] << 8) | rx_buffer[6];
+        recv_chunks = 0;
+        expected_idx = 0;
+        gaps = 0;
+        in_image = 1;
+        t_begin = HAL_GetTick();
+        printf("\r\nJPEG_BEGIN len=%lu chunks=%u snr=%d CONFIG1=0x%02X CONFIG2=0x%02X CONFIG3=0x%02X\r\n",
+               (unsigned long)img_len, total_chunks, (int)received_snr,
+               cfg1, cfg2, cfg3);
+        break;
+
+      case PKT_TYPE_DATA:
+        if (rx_len < 3 || !in_image) break;
+        {
+          uint16_t idx = ((uint16_t)rx_buffer[1] << 8) | rx_buffer[2];
+          if (idx != expected_idx) {
+            gaps++;  /* one or more missing/out-of-order chunks */
+          }
+          expected_idx = (uint16_t)(idx + 1);
+          recv_chunks++;
+          uart_write_hex(&rx_buffer[3], rx_len - 3);
+        }
+        break;
+
+      case PKT_TYPE_TAIL:
+        if (!in_image) break;
+        printf("JPEG_END received=%u/%u gaps=%u time=%lums\r\n",
+               recv_chunks, total_chunks, gaps,
+               (unsigned long)(HAL_GetTick() - t_begin));
+        in_image = 0;
+        break;
+
+      default:
+        break;
+    }
   }
   /* USER CODE END 3 */
 }
