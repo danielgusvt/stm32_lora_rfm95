@@ -215,9 +215,19 @@ int main(void)
     switch (rx_buffer[0]) {
       case PKT_TYPE_HEADER:
         if (rx_len < 7) break;
-        img_len = ((uint32_t)rx_buffer[1] << 24) | ((uint32_t)rx_buffer[2] << 16) |
-                  ((uint32_t)rx_buffer[3] << 8)  |  (uint32_t)rx_buffer[4];
-        total_chunks = ((uint16_t)rx_buffer[5] << 8) | rx_buffer[6];
+        {
+          uint32_t new_len = ((uint32_t)rx_buffer[1] << 24) | ((uint32_t)rx_buffer[2] << 16) |
+                             ((uint32_t)rx_buffer[3] << 8)  |  (uint32_t)rx_buffer[4];
+          uint16_t new_chunks = ((uint16_t)rx_buffer[5] << 8) | rx_buffer[6];
+          /* The sender transmits HEADER several times for resilience. Ignore
+             repeats of the image we're already receiving, but still accept a
+             genuinely new image (e.g. if the previous TAIL was lost). */
+          if (in_image && new_len == img_len && new_chunks == total_chunks) {
+            break;
+          }
+          img_len = new_len;
+          total_chunks = new_chunks;
+        }
         recv_chunks = 0;
         expected_idx = 0;
         gaps = 0;
